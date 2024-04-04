@@ -1,3 +1,7 @@
+# [Status Board](https://github.com/users/HansUXdev/projects/1/views/2)
+Check out the roadmap to get a better idea of the status of individual projects within my portfolio.
+Generally speaking, if its in "review", it means, I'm reasonably confident that it's worth showing a potential employer, friend, business partner, and would LOVE some feedback on from any of the people who have cloned this repo (i do watch my insights). Otherwise, you can assume its either a work in progress, used for demonstration purposes or I'm unsure if I want to make it public for legal/financial reasons
+
 # About
 This repository is a collection of Jupyter Notebooks showcasing my work in Data Science, Quantitative Finance, Machine Learning, and AI. I strive to take unique and often experimental approaches to problems. As a result, some files exist as outlines, either because I haven't finished them or because it would be incredibly unwise to publish them. I have no obligation to clarify which is which, though the roadmap may give you some indication of that.
 
@@ -18,9 +22,6 @@ After GPT came out, I spent a lot of time training custom financial models like 
 A big reason for this is I spent a lot of time on the rights to train it on high-level math and other subjects I'm not an expert in and frankly don't have the time or interest to learn. So, this custom GPT and other models help fill a very valuable knowledge gap typically reserved for PhD students.
 
 
-# [Roadmap](https://github.com/users/HansUXdev/projects/1/views/2)
-Check out the roadmap to get a better idea of the status of individual projects within my portfolio.
-Generally speaking, if its in backlog, I've either not started with the project or just haven't published to github because my code is garbage or I'm unsure if I want to make it public for legal/financial reasons. If its in "review", it means, I'm reasonably confident that it's worth showing a potential employer, friend, business partner, and would LOVE some feedback on from any of the people who have cloned this repo (i do watch my insights). 
 
 # Personal Philosophy and approach to Quantitative Finance
 It's my personal belief that any well managed Quantitative Portfolio, should be ACTIVELY managed, semi-automatously and think in term of **_Recursive Investing_**. Moreover, it should be well diversified with correlated assets and uncorrected assets, and attempt to seek both income and growth regardless of market conditions. Each segment, using machine learning, forecasting and automated risk management is absolutely essential in this approach. Understanding this, is what makes the difference between millions and billions...
