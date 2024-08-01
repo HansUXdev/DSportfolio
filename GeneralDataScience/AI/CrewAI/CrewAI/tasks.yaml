@@ -1,0 +1,39 @@
+task_data_analysis:
+  description: "Gather and process relevant financial data for analysis."
+  expected_output: "A comprehensive dataset with relevant financial data."
+  agent: data_analyst
+
+task_financial_analysis:
+  description: "Analyze the gathered financial data and market trends."
+  expected_output: "An analysis report on financial data and market trends."
+  agent: financial_analyst
+
+task_financial_advice:
+  description: "Provide financial advice based on the analysis."
+  expected_output: "A financial advice report based on the analysis."
+  agent: financial_advisor
+
+task_technical_fundamental_analysis:
+  description: "Perform technical and fundamental analysis on investment opportunities."
+  expected_output: "A report on technical and fundamental analysis of investment opportunities."
+  agent: technical_fundamental_analyst
+
+task_quant_development:
+  description: "Develop quantitative models for investment strategies."
+  expected_output: "Quantitative models for investment strategies."
+  agent: quant_developer
+
+task_quant_research:
+  description: "Conduct research on quantitative methods and strategies."
+  expected_output: "A research report on quantitative methods and strategies."
+  agent: quant_researcher
+
+task_quant_trading:
+  description: "Execute trades based on quantitative strategies."
+  expected_output: "A report on executed trades and their outcomes."
+  agent: quant_trader
+
+task_review:
+  description: "Review, critique, and edit the final content before submission."
+  expected_output: "Finalized and refined content ready for submission."
+  agent: quant_finance_teacher
