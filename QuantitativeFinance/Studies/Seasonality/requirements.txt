@@ -1,0 +1,16 @@
+yfinance
+yoptions
+optionlab
+pandas
+pandas_datareader
+matplotlib
+seaborn
+numpy
+scipy
+statsmodels
+scikit-learn
+concurrent.futures
+backtrader
+quandl
+QuantLib
+quantstats
