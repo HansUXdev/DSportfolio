@@ -9,7 +9,7 @@ This portfolio represents only a small fraction of the code I'm willing to publi
 
 - **General Data Science**: Contains generic, mostly utility scripts and projects in Python.
 - **Social Science**: Primarily concerned with social and economic data and analysis. [Link](https://github.com/HansUXdev/DataSciencePortfolio/tree/main/SocialScience)
-- **Quantitative Finance**: Comprises the bulk of the portfolio, including anything I'm willing to publish that can save or make money. [Link](https://github.com/HansUXdev/DataSciencePortfolio/tree/main/QuantitativeFinance)
+- **Quantitative Finance**: Comprises the bulk of the portfolio, including anything I'm willing to publish and has proven to helo me save money, make money or invest. This also includes projects such as a light-weight alternative to TA-lib [Link](https://github.com/HansUXdev/DataSciencePortfolio/tree/main/QuantitativeFinance)
 
 If you want to learn a little about me, know that I grew up illiterate and largely unable to speak my first language until I was 12. So, I don't have the luxury of thinking I'm any smarter than anyone else. However, I developed a passion for learning anything and everything that interested me. I graduated high school with honors, went to college and studied applied Sociology, published a paper under a pen name, audited enough grad courses to have my master's degree, but didn't want to take the GRE.
 

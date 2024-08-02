@@ -13,6 +13,7 @@ def seasonality_analysis(df):
     seasonality['positive_prob'] = df.groupby(df.index.month)['Monthly Return'].apply(lambda x: (x > 0).mean())
     seasonality.index = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     return seasonality
+
 def display_seasonality_stats(df):
     """Display seasonality statistics."""
     stats = df.groupby(df.index.month)['Monthly Return'].agg(['mean', 'std', 'max', 'min'])

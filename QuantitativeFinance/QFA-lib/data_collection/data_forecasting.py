@@ -35,6 +35,11 @@ def build_and_train_model(X_train, y_train, seq_length, num_features, epochs, ba
     model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, verbose=0)
     return model
 
+
+def calculate_returns(df):
+    """Calculate the daily returns."""
+    df['Return'] = df['Adj Close'].pct_change() * 100
+    return df
 def calculate_metrics(y_true, y_pred):
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
@@ -76,6 +81,7 @@ def forecast_and_plot(stock_data, features, seq_length):
     
     print(f"MAE: {mae}, MSE: {mse}, RMSE: {rmse}")
     plot_forecasts(stock_data, predicted_values, y_test, seq_length, split_idx, scaler)
+
 def plot_ghost_candles(future_predictions, start_date):
     future_dates = pd.date_range(start=start_date, periods=len(future_predictions), freq='B')
     
@@ -90,6 +96,7 @@ def plot_ghost_candles(future_predictions, start_date):
                       yaxis_title='Price',
                       xaxis_rangeslider_visible=False)
     fig.show()
+
 def forecast_future(stock_data, model, scaler, seq_length, num_features, future_days=10):
     # Directly use the DataFrame without slicing it before the function call
     # Ensure stock_data is in the expected DataFrame format with columns
@@ -136,3 +143,66 @@ def forecast_and_plot_complete(ticker, features, start_date, end_date, seq_lengt
     # Forecast future prices directly from the entire stock_data DataFrame
     future_predictions = forecast_future(stock_data, model, scaler, seq_length, num_features, future_days)
     plot_ghost_candles(future_predictions, '2024-03-11')
+
+
+def machine_learning_analysis(df):
+    df['Target'] = (df['Return'] > 0).astype(int)
+    features = ['Adj Close', 'Return']
+    X = df[features].shift(1).dropna()
+    y = df['Target'].shift(1).dropna()
+    X, y = X.align(y, join='inner', axis=0)
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+
+    print(f"Model Accuracy: {accuracy:.2f}")
+    return model, accuracy
+
+def get_fundamental_ratios(ticker):
+    stock = yf.Ticker(ticker)
+    pe_ratio = stock.info['trailingPE']
+    pb_ratio = stock.info['priceToBook']
+    debt_to_equity = stock.info['debtToEquity']
+    return pe_ratio, pb_ratio, debt_to_equity
+
+def arima_forecast(df, column='Adj Close', order=(5, 1, 0)):
+    model = ARIMA(df[column], order=order)
+    model_fit = model.fit()
+    forecast = model_fit.forecast(steps=10)
+    return forecast
+
+def garch_forecast(df, column='Adj Close'):
+    model = arch_model(df[column], vol='Garch', p=1, q=1)
+    model_fit = model.fit()
+    forecast = model_fit.forecast(horizon=10)
+    return forecast
+
+def backtest_strategy(df):
+    class MyStrategy(bt.Strategy):
+        params = (('maperiod', 15),)
+
+        def __init__(self):
+            self.dataclose = self.datas[0].close
+            self.order = None
+            self.sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.params.maperiod)
+
+        def next(self):
+            if self.order:
+                return
+
+            if not self.position:
+                if self.dataclose[0] > self.sma[0]:
+                    self.order = self.buy()
+            else:
+                if self.dataclose[0] < self.sma[0]:
+                    self.order = self.sell()
+
+    cerebro = bt.Cerebro()
+    cerebro.addstrategy(MyStrategy)
+    data = bt.feeds.PandasData(dataname=df)
+    cerebro.adddata(data)
+    cerebro.run()
+    cerebro.plot()

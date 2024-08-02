@@ -14,9 +14,198 @@ import numpy as np
 from pandas_datareader import data as pdr
 from datetime import datetime
 
+from data_forecasting import (arima_forecast, garch_forecast, get_fundamental_ratios, accuracy_score, optimize_model_hyperparameter)
 ############################################################################################################
 # Utility Functions
 ############################################################################################################
+def resample_to_quarterly(df):
+    return df.resample('Q').ffill()
+
+def resample_to_monthly(df):
+    return df.resample('M').ffill()
+
+def resample_to_weekly(df):
+    return df.resample('W').ffill()
+
+def resample_to_daily(df):
+    return df.resample('D').ffill()
+
+def resample_to_hourly(df):
+    return df.resample('H').ffill()
+
+
+
+
+def calculate_returns(df):
+    """Calculate the daily returns."""
+    df['Return'] = df['Adj Close'].pct_change() * 100
+    return df
+def display_all_monthly_statistics(df):
+    """Display all monthly statistics for a DataFrame."""
+    df_monthly = resample_to_monthly(df)
+    df_monthly['Monthly Return'] = df_monthly['Adj Close'].pct_change() * 100
+    display_seasonality_stats(df_monthly)
+
+def display_seasonality_stats(df):
+    """Display seasonality statistics."""
+    stats = df.groupby(df.index.month)['Monthly Return'].agg(['mean', 'std', 'max', 'min'])
+    stats.index = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    for month in stats.index:
+        mean_return = stats.loc[month, 'mean']
+        print(f"{month}: Mean = {mean_return:.2f}")
+
+
+
+def load_price_data(tickers, start='2000-01-01', end=None):
+    """
+    Load historical data for given tickers using yfinance.
+    
+    Parameters:
+    tickers (str or list): A single ticker symbol or a list of ticker symbols.
+    start (str): The start date for fetching data in 'YYYY-MM-DD' format.
+    end (str): The end date for fetching data in 'YYYY-MM-DD' format. Defaults to today's date if None.
+    
+    Returns:
+    pd.DataFrame: DataFrame containing historical price data.
+    """
+    if end is None:
+        end = datetime.now().strftime('%Y-%m-%d')
+    
+    data = yf.download(tickers, start=start, end=end, auto_adjust=False)
+    
+    if data.empty:
+        print(f"No data found for {tickers}")
+        return pd.DataFrame()
+    
+    # Ensure all necessary columns are included for single ticker
+    if isinstance(tickers, str):
+        required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close']
+        if not all(col in data.columns for col in required_columns):
+            print(f"Missing required columns in data for {tickers}. Available columns: {data.columns}")
+            return pd.DataFrame()
+    else:
+        # For multiple tickers, ensure 'Adj Close' is present
+        if 'Adj Close' not in data.columns.levels[0]:
+            print(f"Missing 'Adj Close' column in data for {tickers}. Available columns: {data.columns.levels[0]}")
+            return pd.DataFrame()
+
+    return data
+
+def load_data(ticker='SPY', start='2008-01-01', end=None):
+    """
+    Load historical data for a given ticker using yfinance.
+    """
+    if end is None:
+        end = datetime.now().strftime('%Y-%m-%d')
+    df = yf.download(ticker, start=start, end=end)
+    return df
+
+def half_kelly_criterion(mean_return, std_return):
+    win_prob = (mean_return / std_return) ** 2 / ((mean_return / std_return) ** 2 + 1)
+    loss_prob = 1 - win_prob
+    odds = mean_return / std_return
+    kelly_fraction = (win_prob - loss_prob) / odds
+    half_kelly_fraction = kelly_fraction / 2
+    return half_kelly_fraction
+
+def calculate_half_kelly_fractions(seasonality_stats):
+    seasonality_stats['half_kelly_fraction'] = seasonality_stats.apply(
+        lambda row: half_kelly_criterion(row['mean'], row['std']), axis=1
+    )
+    return seasonality_stats
+def position_size_half_kelly(signals, seasonality_stats, iv_series):
+    signals['half_kelly_fraction'] = signals.index.month.map(seasonality_stats['half_kelly_fraction'])
+    signals['position_size'] = signals['half_kelly_fraction'].fillna(0) * signals['Buy']
+    return signals
+def backtest_strategy_with_half_kelly(df, signals):
+    df['Strategy Return'] = df['Monthly Return'] * signals['position_size'].shift(1)
+    df['Cumulative Return'] = (1 + df['Monthly Return']/100).cumprod() - 1
+    df['Cumulative Strategy Return'] = (1 + df['Strategy Return']/100).cumprod() - 1
+    return df
+
+
+def create_summary_csv(tickers, start_date, end_date, filename='summary.csv'):
+    summary_data = []
+    
+    for ticker in tickers:
+        df = load_price_data(ticker, start=start_date, end=end_date)
+        
+        if isinstance(df, pd.Series):
+            df = df.to_frame(name='Adj Close')
+        
+        if 'Adj Close' not in df.columns:
+            print(f"Column 'Adj Close' not found in the data for {ticker}. Available columns: {df.columns}")
+            continue
+        
+        df = calculate_returns(df)
+        seasonality_table = create_seasonality_table(df)
+        
+        for month, stats in seasonality_table.iterrows():
+            mean_return = stats['mean']
+            std_dev = stats['std']
+            count = stats['count']
+            positive_prob = stats['positive_prob']
+            kelly_size = apply_kelly_method(mean_return, std_dev, positive_prob)
+            
+            summary_data.append({
+                'Ticker': ticker,
+                'Month': month,
+                'Mean Return': mean_return,
+                'Standard Deviation': std_dev,
+                'Count': count,
+                'Positive Probability': positive_prob,
+                'Kelly Size': kelly_size
+            })
+    
+    summary_df = pd.DataFrame(summary_data)
+    summary_df.to_csv(filename, index=False)
+    print(f"Summary CSV created: {filename}")
+def apply_kelly_method(mean_return, std_dev, win_prob):
+    b = mean_return / std_dev  # Assuming b is the edge ratio
+    kelly_fraction = win_prob - ((1 - win_prob) / b)
+    return kelly_fraction
+
+# Main Analysis Function
+def analyze_ticker(ticker, start_date, end_date):
+    df = load_price_data(ticker, start=start_date, end=end_date)
+    
+    if isinstance(df, pd.Series):
+        df = df.to_frame(name='Adj Close')
+    
+    if 'Adj Close' not in df.columns:
+        print(f"Column 'Adj Close' not found in the data for {ticker}. Available columns: {df.columns}")
+        return
+    
+    if 'Close' not in df.columns or 'High' not in df.columns or 'Low' not in df.columns:
+        print(f"Columns 'Close', 'High', and 'Low' are required. Available columns: {df.columns}")
+        return
+    
+    df['Return'] = df['Adj Close'].pct_change() * 100
+    df = ichimoku_cloud(df)
+    df = add_technical_indicators(df)
+
+    # ARIMA and GARCH Forecasts
+    arima_forecast(df)
+    garch_forecast(df)
+
+    # Fundamental Ratios
+    pe_ratio, pb_ratio, debt_to_equity = get_fundamental_ratios(ticker)
+    print(f"P/E Ratio: {pe_ratio}, P/B Ratio: {pb_ratio}, Debt to Equity: {debt_to_equity}")
+
+    # Machine Learning with Hyperparameter Optimization
+    df['Target'] = (df['Return'] > 0).astype(int)
+    features = ['Adj Close', 'Return']
+    X = df[features].shift(1).dropna()
+    y = df['Target'].shift(1).dropna()
+    X, y = X.align(y, join='inner')
+    best_model = optimize_model_hyperparameters(X, y)
+    y_pred = best_model.predict(X)
+    accuracy = accuracy_score(y, y_pred)
+    print(f"Optimized Model Accuracy: {accuracy:.2f}")
+
+    # Backtest Strategy
+    backtest_strategy(df)
 
 ############################################################################################################
 # Fundementals
@@ -85,6 +274,19 @@ def fetch_fundamentals(ticker):
 ############################################################################################################
 # Technicals which should replace the need for ta-lib
 ############################################################################################################
+
+def add_technical_indicators(df):
+    try:
+        df = bollinger_bands(df)
+        df = macd(df)
+        df = rsi(df)
+        df = woodie_pivots(df)
+        # df = obv(df)
+        df = atr(df)
+        df = stochastic_oscillator(df)
+    except KeyError as e:
+        print(f"Missing column for technical indicator calculation: {e}")
+    return df
 
 def bollinger_bands(data, window=20, num_std=2):
     rolling_mean = data['Close'].rolling(window=window).mean()
@@ -775,40 +977,7 @@ def get_spy_options():
 ############################################################################################################
 # Fetch Financial Data 
 ############################################################################################################
-def load_price_data(tickers, start='2000-01-01', end=None):
-    """
-    Load historical data for given tickers using yfinance.
-    
-    Parameters:
-    tickers (str or list): A single ticker symbol or a list of ticker symbols.
-    start (str): The start date for fetching data in 'YYYY-MM-DD' format.
-    end (str): The end date for fetching data in 'YYYY-MM-DD' format. Defaults to today's date if None.
-    
-    Returns:
-    pd.DataFrame: DataFrame containing historical price data.
-    """
-    if end is None:
-        end = datetime.now().strftime('%Y-%m-%d')
-    
-    data = yf.download(tickers, start=start, end=end, auto_adjust=False)
-    
-    if data.empty:
-        print(f"No data found for {tickers}")
-        return pd.DataFrame()
-    
-    # Ensure all necessary columns are included for single ticker
-    if isinstance(tickers, str):
-        required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close']
-        if not all(col in data.columns for col in required_columns):
-            print(f"Missing required columns in data for {tickers}. Available columns: {data.columns}")
-            return pd.DataFrame()
-    else:
-        # For multiple tickers, ensure 'Adj Close' is present
-        if 'Adj Close' not in data.columns.levels[0]:
-            print(f"Missing 'Adj Close' column in data for {tickers}. Available columns: {data.columns.levels[0]}")
-            return pd.DataFrame()
 
-    return data
 
 def load_fed_data(series, start_date='2000-01-01'):
     return pdr.get_data_fred(series, start=start_date)
@@ -864,8 +1033,6 @@ def fetch_financial_data(ticker='SPY', start_year=1993, end_year=None, interval=
         print(f'Data exported to {csv_file}')
     
     return data 
-def resample_to_monthly(df):
-    return df.resample('M').ffill()
 
 
 

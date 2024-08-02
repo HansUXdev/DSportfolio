@@ -291,3 +291,18 @@ def display_all_monthly_statistics(seasonality_table, seasonality_volume_table):
         print(f"Highest {month} Volume: {highest_volume_value:.2f} in {highest_volume_year}")
         print(f"Lowest {month} Volume: {lowest_volume_value:.2f} in {lowest_volume_year}")
         print()
+
+
+
+
+# src/visualization/plot_strategy.py
+
+import matplotlib.pyplot as plt
+
+def plot_cumulative_returns_with_half_kelly(original, strategy, title):
+    plt.figure(figsize=(14, 7))
+    plt.plot(original.index, original['Cumulative Return'], label='Original Return')
+    plt.plot(strategy.index, strategy['Cumulative Strategy Return'], label='Strategy Return with Half-Kelly Position Sizing')
+    plt.legend()
+    plt.title(title)
+    plt.show()
