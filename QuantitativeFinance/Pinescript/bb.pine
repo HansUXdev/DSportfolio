@@ -1,0 +1,125 @@
+// © LivingDracula
+//@version=5
+
+indicator(title = "Multi-Timeframe Adaptive Bollinger Bands Predictor", shorttitle = "MTABP", overlay = true)
+
+// Input parameters for two Bollinger Bands setups
+
+// First Bollinger Band setup
+displayBB1 = input.bool(true, title="Display BB Set 1")
+displayMA1 = input.bool(true, title="Display MA Set 1")
+timeframe1 = input.timeframe("", title = "Timeframe Set 1")
+maType1 = input.string("SMA", title = "MA Type Set 1", options = ["DEMA", "EMA", "HMA", "LSMA", "RMA", "SMA", "SWMA", "TEMA", "TMA", "VWMA", "WMA"])
+dataSource1 = input.source(close, title = "Data Source Set 1")
+maPeriod1 = input.int(20, title = "MA Period Set 1", minval = 2)
+stdDevMultiplier1 = input.float(2.0, title = "StdDev Multiplier Set 1", minval = 1)
+offsetValue1 = input.int(0, title = "Offset Set 1")
+
+// Second Bollinger Band setup
+displayBB2 = input.bool(true, title="Display BB Set 2")
+displayMA2 = input.bool(true, title="Display MA Set 2")
+timeframe2 = input.timeframe("W", title = "Timeframe Set 2")
+maType2 = input.string("SMA", title = "MA Type Set 2", options = ["DEMA", "EMA", "HMA", "LSMA", "RMA", "SMA", "SWMA", "TEMA", "TMA", "VWMA", "WMA"])
+dataSource2 = input.source(close, title = "Data Source Set 2")
+maPeriod2 = input.int(52, title = "MA Period Set 2", minval = 2)
+stdDevMultiplier2 = input.float(2.0, title = "StdDev Multiplier Set 2", minval = 1)
+offsetValue2 = input.int(0, title = "Offset Set 2")
+
+// Function to calculate various types of moving averages
+calculateMA(type, src, len) =>
+    if type == "DEMA"
+        2 * ta.ema(src, len) - ta.ema(ta.ema(src, len), len)
+    else if type == "EMA"
+        ta.ema(src, len)
+    else if type == "HMA"
+        ta.wma(2 * ta.wma(src, len / 2) - ta.wma(src, len), math.round(math.sqrt(len)))
+    else if type == "LSMA"
+        3 * ta.wma(src, len) - 2 * ta.sma(src, len)
+    else if type == "RMA"
+        ta.rma(src, len)
+    else if type == "SMA"
+        ta.sma(src, len)
+    else if type == "SWMA"
+        ta.swma(src)
+    else if type == "TEMA"
+        3 * ta.ema(src, len) - 3 * ta.ema(ta.ema(src, len), len) + ta.ema(ta.ema(ta.ema(src, len), len), len)
+    else if type == "TMA"
+        ta.swma(ta.wma(src, len))
+    else if type == "VWMA"
+        ta.vwma(src, len)
+    else if type == "WMA"
+        ta.wma(src, len)
+
+// Calculate moving averages for both setups
+movingAvg1 = request.security(syminfo.tickerid, timeframe1, calculateMA(maType1, dataSource1, maPeriod1))
+movingAvg2 = request.security(syminfo.tickerid, timeframe2, calculateMA(maType2, dataSource2, maPeriod2))
+
+// Calculate Bollinger Bands for both setups
+upperBand1 = movingAvg1 + request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+upperBand2 = movingAvg2 + request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+lowerBand1 = movingAvg1 - request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+lowerBand2 = movingAvg2 - request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+
+// Calculate predicted moving averages for future periods
+predictedMA11 = request.security(syminfo.tickerid, timeframe1, (calculateMA(maType1, dataSource1, maPeriod1 - 1) * (maPeriod1 - 1) + dataSource1 * 1) / maPeriod1)
+predictedMA12 = request.security(syminfo.tickerid, timeframe1, (calculateMA(maType1, dataSource1, maPeriod1 - 2) * (maPeriod1 - 2) + dataSource1 * 2) / maPeriod1)
+predictedMA13 = request.security(syminfo.tickerid, timeframe1, (calculateMA(maType1, dataSource1, maPeriod1 - 3) * (maPeriod1 - 3) + dataSource1 * 3) / maPeriod1)
+
+predictedMA21 = request.security(syminfo.tickerid, timeframe2, (calculateMA(maType2, dataSource2, maPeriod2 - 1) * (maPeriod2 - 1) + dataSource2 * 1) / maPeriod2)
+predictedMA22 = request.security(syminfo.tickerid, timeframe2, (calculateMA(maType2, dataSource2, maPeriod2 - 2) * (maPeriod2 - 2) + dataSource2 * 2) / maPeriod2)
+predictedMA23 = request.security(syminfo.tickerid, timeframe2, (calculateMA(maType2, dataSource2, maPeriod2 - 3) * (maPeriod2 - 3) + dataSource2 * 3) / maPeriod2)
+
+// Calculate predicted Bollinger Bands for future periods
+predictedUpperBand11 = predictedMA11 + request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+predictedUpperBand12 = predictedMA12 + request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+predictedUpperBand13 = predictedMA13 + request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+predictedLowerBand11 = predictedMA11 - request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+predictedLowerBand12 = predictedMA12 - request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+predictedLowerBand13 = predictedMA13 - request.security(syminfo.tickerid, timeframe1, ta.stdev(dataSource1, maPeriod1)) * stdDevMultiplier1
+
+predictedUpperBand21 = predictedMA21 + request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+predictedUpperBand22 = predictedMA22 + request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+predictedUpperBand23 = predictedMA23 + request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+predictedLowerBand21 = predictedMA21 - request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+predictedLowerBand22 = predictedMA22 - request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+predictedLowerBand23 = predictedMA23 - request.security(syminfo.tickerid, timeframe2, ta.stdev(dataSource2, maPeriod2)) * stdDevMultiplier2
+
+// Define colors for Bollinger Bands
+colorUpperBand1 = color.red
+colorLowerBand1 = color.blue
+colorUpperBand2 = color.yellow
+colorLowerBand2 = color.green
+
+// Plot and fill Bollinger Bands for the first setup
+plot(displayBB1 and displayMA1 ? movingAvg1 : na, title = "MA Set 1", color = color.gray, offset = offsetValue1)
+upperBandPlot1 = plot(displayBB1 ? upperBand1 : na, title = "Upper Band Set 1", color = colorUpperBand1, offset = offsetValue1)
+lowerBandPlot1 = plot(displayBB1 ? lowerBand1 : na, title = "Lower Band Set 1", color = colorLowerBand1, offset = offsetValue1)
+fill(upperBandPlot1, lowerBandPlot1, title = "BB Fill Set 1", color = color.new(colorUpperBand1, 95))
+
+// Plot predicted Bollinger Bands for the first setup
+plot(displayBB1 and displayMA1 ? predictedMA11 : na, title = "Predicted MA Set 1 (1)", color = color.gray, style = plot.style_circles, offset = offsetValue1 + 1, show_last = 1)
+plot(displayBB1 and displayMA1 ? predictedMA12 : na, title = "Predicted MA Set 1 (2)", color = color.gray, style = plot.style_circles, offset = offsetValue1 + 2, show_last = 1)
+plot(displayBB1 and displayMA1 ? predictedMA13 : na, title = "Predicted MA Set 1 (3)", color = color.gray, style = plot.style_circles, offset = offsetValue1 + 3, show_last = 1)
+plot(displayBB1 ? predictedUpperBand11 : na, title = "Predicted Upper Band Set 1 (1)", color = colorUpperBand1, style = plot.style_circles, offset = offsetValue1 + 1, show_last = 1)
+plot(displayBB1 ? predictedUpperBand12 : na, title = "Predicted Upper Band Set 1 (2)", color = colorUpperBand1, style = plot.style_circles, offset = offsetValue1 + 2, show_last = 1)
+plot(displayBB1 ? predictedUpperBand13 : na, title = "Predicted Upper Band Set 1 (3)", color = colorUpperBand1, style = plot.style_circles, offset = offsetValue1 + 3, show_last = 1)
+plot(displayBB1 ? predictedLowerBand11 : na, title = "Predicted Lower Band Set 1 (1)", color = colorLowerBand1, style = plot.style_circles, offset = offsetValue1 + 1, show_last = 1)
+plot(displayBB1 ? predictedLowerBand12 : na, title = "Predicted Lower Band Set 1 (2)", color = colorLowerBand1, style = plot.style_circles, offset = offsetValue1 + 2, show_last = 1)
+plot(displayBB1 ? predictedLowerBand13 : na, title = "Predicted Lower Band Set 1 (3)", color = colorLowerBand1, style = plot.style_circles, offset = offsetValue1 + 3, show_last = 1)
+
+// Plot and fill Bollinger Bands for the second setup
+plot(displayBB2 and displayMA2 ? movingAvg2 : na, title = "MA Set 2", color = color.gray, offset = offsetValue2)
+upperBandPlot2 = plot(displayBB2 ? upperBand2 : na, title = "Upper Band Set 2", color = colorUpperBand2, offset = offsetValue2)
+lowerBandPlot2 = plot(displayBB2 ? lowerBand2 : na, title = "Lower Band Set 2", color = colorLowerBand2, offset = offsetValue2)
+fill(upperBandPlot2, lowerBandPlot2, title = "BB Fill Set 2", color = color.new(colorUpperBand2, 95))
+
+// Plot predicted Bollinger Bands for the second setup
+plot(displayBB2 and displayMA2 ? predictedMA21 : na, title = "Predicted MA Set 2 (1)", color = color.gray, style = plot.style_circles, offset = offsetValue2 + 1, show_last = 1)
+plot(displayBB2 and displayMA2 ? predictedMA22 : na, title = "Predicted MA Set 2 (2)", color = color.gray, style = plot.style_circles, offset = offsetValue2 + 2, show_last = 1)
+plot(displayBB2 and displayMA2 ? predictedMA23 : na, title = "Predicted MA Set 2 (3)", color = color.gray, style = plot.style_circles, offset = offsetValue2 + 3, show_last = 1)
+plot(displayBB2 ? predictedUpperBand21 : na, title = "Predicted Upper Band Set 2 (1)", color = colorUpperBand2, style = plot.style_circles, offset = offsetValue2 + 1, show_last = 1)
+plot(displayBB2 ? predictedUpperBand22 : na, title = "Predicted Upper Band Set 2 (2)", color = colorUpperBand2, style = plot.style_circles, offset = offsetValue2 + 2, show_last = 1)
+plot(displayBB2 ? predictedUpperBand23 : na, title = "Predicted Upper Band Set 2 (3)", color = colorUpperBand2, style = plot.style_circles, offset = offsetValue2 + 3, show_last = 1)
+plot(displayBB2 ? predictedLowerBand21 : na, title = "Predicted Lower Band Set 2 (1)", color = colorLowerBand2, style = plot.style_circles, offset = offsetValue2 + 1, show_last = 1)
+plot(displayBB2 ? predictedLowerBand22 : na, title = "Predicted Lower Band Set 2 (2)", color = colorLowerBand2, style = plot.style_circles, offset = offsetValue2 + 2, show_last = 1)
+plot(displayBB2 ? predictedLowerBand23 : na, title = "Predicted Lower Band Set 2 (3)", color = colorLowerBand2, style = plot.style_circles, offset = offsetValue2 + 3, show_last = 1)
